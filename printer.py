@@ -1,3 +1,4 @@
+from datetime import datetime
 from escpos.printer import Win32Raw
 from config import app_config
 
@@ -19,7 +20,7 @@ def get_printer():
         print(f"❗No printer connection available for '{printer_name}'. Printing functions will not work.")
     return p
 
-printer = get_printer()
+pos80 = get_printer()
 
 
 def calibrate_width():
@@ -55,5 +56,54 @@ def _calibrate_nuclear_option():
     p = Win32Raw(app_config["printer_name"], profile="TM-T88V")
     p._raw(b'\x1d\x57\x40\x02')
 
+def print_receipt():
+    p = get_printer()
+
+    p.set(font='a', align='center', width=1, height=1)
+
+    p.image(app_config["logo_path"])
+
+    # 1. Header (Centered, Bold, Double Size)
+    p.set(bold=True)
+    p.text("CHARLIE & THE CHOCOLATE FACTORY\n")
+    
+    # 2. Reset to Normal
+    p.set(bold=False)
+    p.text("123 Business Road, Austin, TX 78701\n")
+    p.text("Tel: 012-345-6789\n")
+    p.text("www.charliechocolate.com\n")
+    
+    # Date and Time
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    p.set(align='left')
+    p.text("-" * 48 + "\n")
+
+    # 3. Item List
+    p.text("    Apple Juice                    $. 250.00    \n")
+    p.text("    Biscuits (Large)               $. 180.00    \n")
+    p.text("-" * 48 + "\n")
+
+    # 4. Total
+    p.set(bold=True)
+    p.text("                      TOTAL        $. 430.00    \n\n")
+
+    # 5. Barcode (Standard EAN13 requires 12 or 13 digits)
+    p.set(align='center')
+    try:
+        # '64' is height, '2' is width of bars
+        p.barcode('123456789012', 'EAN13', 64, 2, '', '')
+    except Exception as e:
+        print(f"Barcode error: {e}")
+
+    # 6. Finalize
+    p.set(font='b', align='center', width=1, height=1)
+    p.text(f"\n{now}\n")
+    p.text("Thank you for shopping with us!\n")
+    p.ln(1)
+    
+    p.cut()
+
 if __name__ == "__main__":
     calibrate_width()
+    print_receipt()

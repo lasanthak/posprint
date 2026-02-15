@@ -148,16 +148,14 @@ class TestPosOrder(unittest.TestCase):
         it2 = pos.PosItem(name="Biscuits (Large)", price=180.00, count=1)
         ex1 = pos.PosCharge(name="Donation", amount=150.00, fixed=True)
         ex2 = pos.PosCharge(name="Donation2", amount=0.1, fixed=False)
-        currency = "£"
         order1 = pos.PosOrder(order_id="ORD001", shop=sp1, items=[it1]) # valid 
         order2 = pos.PosOrder(order_id="ORD002", shop=sp1, items=[], extras=[ex1], customer_name="John Doe", notes="It's a gift") # valid 
-        order3 = pos.PosOrder(order_id="ORD003", shop=sp2, items=[it1, it2], extras=[ex1, ex2], currency=currency) # valid with no charges
+        order3 = pos.PosOrder(order_id="ORD003", shop=sp2, items=[it1, it2], extras=[ex1, ex2]) # valid with no charges
         self.assertEqual(order1.customer_name, "Customer ORD001") 
         self.assertEqual(order1.notes, [])
         self.assertEqual(order2.customer_name, "John Doe") 
         self.assertEqual(order2.notes, ["It's a gift"])
-        self.assertEqual(order2.currency, "$")
-        self.assertEqual(order3.currency, "£")
+
 
         order4 = pos.PosOrder(order_id="ORD004", shop=sp1, items=[it1, it2], extras=[ex1, ex2],
                               customer_name="John Doe 1234567890 1234567890 1234567890", 

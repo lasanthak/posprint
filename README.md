@@ -26,6 +26,9 @@ uv sync
 
 ## Usage
 
+### Update Confgis
+You need to update the `confgi.json` with appropriate configuration values that suites your use case. E.g.: Most importantly change the printer name.
+
 ### Define a shop
 
 ```python

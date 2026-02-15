@@ -1,5 +1,5 @@
 {
     "printer_name": "POS-80",
-    "currency": "$",
+    "currency": {"name": "USD", "symbol": "$"},
     "logo_path": "images/logo.bmp"
 }

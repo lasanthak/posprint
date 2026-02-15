@@ -2,6 +2,12 @@ from abc import ABC, abstractmethod
 from typing import List
 from config import app_config
 
+def print48_charge(charge_name: str, charge_amount: float) -> str:
+        amount_str = f"{charge_amount:>6,.2f}"
+        name_len = 48 - len(amount_str) - 3
+        name_str = f"{charge_name:<{name_len}.{name_len}}"
+        return f" {name_str} {amount_str} "
+
 class PosPrintable(ABC):
     @abstractmethod
     def print48(self) -> List[str]:
@@ -10,8 +16,6 @@ class PosPrintable(ABC):
         representation of the item for receipt printing.
         """
         pass
-
-CURRENCY = app_config["currency"]
 
 class PosCharge:
     def __init__(self, name: str, amount: float, fixed: bool = True):
@@ -59,7 +63,7 @@ class PosItem(PosPrintable):
     def total_price(self) -> float:
         return self.price * self.count
 
-    def print48(self) -> str:
+    def print48(self) -> List[str]:
         # Left-aligned and padded
         count_str = f"{self.count:>2}"
         price_str = f"{self.price:>6,.2f}"
@@ -76,6 +80,10 @@ class PosItem(PosPrintable):
             lines.append(f" {self.note:.32}") # truncated to 32 chars
 
         return lines
+    
+    @staticmethod
+    def print48_header() -> str:
+        return f" Item                       Qty   Price   Total "
 
 
 class PosShop(PosPrintable):
@@ -103,7 +111,7 @@ class PosShop(PosPrintable):
         self.email = email.strip() if email else ""
         self.surcharges = surcharges
     
-    def print48(self) -> str:
+    def print48(self) -> List[str]:
         # 46 chars for content - expecting additional 2 spaces for padding (not added here)
         lines = [
             f"{self.name:.46}",
@@ -126,12 +134,10 @@ class PosOrder(PosPrintable):
                  shop: PosShop,
                  items: List[PosItem],
                  extras: List[PosCharge] = [],
-                 currency: str = CURRENCY,
                  customer_name: str = "",
                  notes: str = ""):
         self.order_id = order_id.strip() if order_id else ""
         assert self.order_id and len(self.order_id) <= 12, "Order ID must be 1-12 characters"
-        self.currency = currency
         self.shop = shop
         assert items or extras, f"Order {order_id} must contain at least one item"
         self.items = items
@@ -146,11 +152,12 @@ class PosOrder(PosPrintable):
         self.notes = _split_text(notes, max_width=48, max_parts=3)
 
     def print48(self) -> str:
-        lines = []
-        for item in self.items:
-            lines.extend(item.print48())
-        total_str = f"{self.total:>6,.2f}"
-        lines.append(f"{'TOTAL':>42} {total_str} ")
+        lines = [print48_charge("Subtotal", self.sub_total)]
+        for c in self.surcharges:
+            lines.append(print48_charge(c.name, c.total_amount))
+        for c in self.extras:
+            lines.append(print48_charge(c.name, c.total_amount))
+        lines.append(print48_charge("Total", self.total))
         return lines
 
 PAYMENT_METHODS = ["Cash", "CreditCard", "DebitCard", "ApplePay", "GooglePay", "Check", "PayPal", "Venmo", "Other"]
@@ -162,13 +169,21 @@ class PosPayment:
         self.amount = amount
         assert self.amount >= 0, "Payment amount must be greater than or equal to 0"
 
-class PosOrderPayment:
+class PosOrderPayment(PosPrintable):
     def __init__(self, order: PosOrder, payments: List[PosPayment]):
         self.order = order
         self.payments = payments
         total_paid = sum(payment.amount for payment in payments)
         assert total_paid >= self.order.total, f"Order {self.order.order_id} - Total payment must be >= order total ({self.order.total})"
         self.change = total_paid - self.order.total
+
+    def print48(self) -> List[str]:
+        lines = []
+        for payment in self.payments:
+            lines.append(print48_charge(payment.method, payment.amount))
+        if self.change > 0:
+            lines.append(print48_charge("Change", self.change))
+        return lines
 
 def _split_text(text: str, max_width: int, max_parts: int = 3) -> List[str]:
     """
